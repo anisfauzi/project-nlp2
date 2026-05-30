@@ -1,0 +1,15 @@
+# Dependensi untuk training_model.py (Qwen2.5 + LoRA)
+#
+# Tanpa GPU NVIDIA (CPU saja):
+#   1) pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   2) pip install -r requirements-training.txt
+#
+# bitsandbytes (QLoRA 4-bit) hanya berguna untuk GPU NVIDIA, jadi di-skip untuk CPU.
+
+torch>=2.1.0
+transformers>=4.45.0
+datasets>=2.19.0
+peft>=0.12.0
+trl>=0.9.6
+accelerate>=0.30.0
+sentencepiece>=0.1.99

@@ -1,0 +1,4 @@
+# Folder ini menyimpan hasil training:
+#   model/lora_adapter/  -> adapter LoRA (ringan, butuh base model)
+#   model/merged/        -> model gabungan siap pakai (jika training pakai --merge)
+#   model/checkpoints/   -> checkpoint selama training

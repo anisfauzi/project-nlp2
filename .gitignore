@@ -70,9 +70,16 @@ desktop.ini
 *.log
 logs/
 
-# Model & data files (uncomment if needed)
-# *.pkl
-# *.joblib
-# *.h5
-# *.model
-# data/
+# Hasil training model (berukuran besar) — folder tetap ada via .gitkeep
+model/*
+!model/.gitkeep
+
+# File presentasi
+*.pptx
+*.ppt
+
+# File bobot model umum lainnya
+*.pkl
+*.joblib
+*.h5
+*.safetensors
