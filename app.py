@@ -16,6 +16,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 from cjk_filter import build_cjk_suppressor
+from training_word_vector import tokenize, MODEL_PATH as W2V_PATH
 
 app = Flask(__name__)
 
@@ -113,6 +114,32 @@ def generate_reply(message):
 
 
 # ---------------------------------------------------------------------------
+# Model Word Vector (Word2Vec) — dimuat sekali, lalu di-cache
+# ---------------------------------------------------------------------------
+_w2v = None
+_w2v_lock = threading.Lock()
+
+
+def get_word_vectors():
+    """Muat model Word2Vec sekali. Mengembalikan objek KeyedVectors (.wv)."""
+    global _w2v
+    if _w2v is not None:
+        return _w2v
+    with _w2v_lock:
+        if _w2v is not None:
+            return _w2v
+        if not os.path.exists(W2V_PATH):
+            raise FileNotFoundError(
+                "Model word vector belum ada. Jalankan training_word_vector.py dulu."
+            )
+        from gensim.models import Word2Vec
+        print(f"[INFO] Memuat model Word2Vec dari: {W2V_PATH}")
+        _w2v = Word2Vec.load(W2V_PATH).wv
+        print(f"[INFO] Word2Vec siap ({len(_w2v)} kata).")
+        return _w2v
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 @app.route('/')
@@ -123,6 +150,63 @@ def index():
 @app.route('/word_vector')
 def word_vector():
     return render_template("word_vector.html")
+
+
+@app.route('/word_vector/lookup', methods=['POST'])
+def word_vector_lookup():
+    data = request.get_json(silent=True) or {}
+    tokens = tokenize(data.get('word') or '')
+    if not tokens:
+        return jsonify({'found': False, 'message': 'Silakan ketik sebuah kata.'})
+    word = tokens[0]
+    try:
+        wv = get_word_vectors()
+    except FileNotFoundError as e:
+        return jsonify({'found': False, 'message': str(e)})
+
+    if word not in wv:
+        return jsonify({
+            'found': False,
+            'message': f"Kata '{word}' tidak ada di kosakata model.",
+        })
+
+    vector = wv[word]
+    return jsonify({
+        'found': True,
+        'word': word,
+        'dim': int(vector.shape[0]),
+        'vector': [round(float(v), 4) for v in vector],
+    })
+
+
+@app.route('/word_vector_search')
+def word_vector_search():
+    return render_template("word_vector_search.html")
+
+
+@app.route('/word_vector_search/similar', methods=['POST'])
+def word_vector_similar():
+    data = request.get_json(silent=True) or {}
+    tokens = tokenize(data.get('word') or '')
+    if not tokens:
+        return jsonify({'found': False, 'message': 'Silakan ketik sebuah kata.'})
+    word = tokens[0]
+    try:
+        wv = get_word_vectors()
+    except FileNotFoundError as e:
+        return jsonify({'found': False, 'message': str(e)})
+
+    if word not in wv:
+        return jsonify({
+            'found': False,
+            'message': f"Kata '{word}' tidak ada di kosakata model.",
+        })
+
+    results = [
+        {'word': w, 'score': round(float(score), 4)}
+        for w, score in wv.most_similar(word, topn=10)
+    ]
+    return jsonify({'found': True, 'word': word, 'results': results})
 
 
 @app.route('/chat_bot')

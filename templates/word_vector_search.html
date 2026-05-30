@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>Word Vector</title>
+<title>Word Vector Search</title>
 <style>
 body {
 	font-family: Arial, sans-serif;
@@ -38,46 +38,56 @@ body {
 }
 .search-row button:hover { background: #006400; }
 .info { color: #666; font-size: 14px; margin-bottom: 12px; }
-.result-title { font-weight: bold; color: green; margin-bottom: 8px; }
-.vector-box {
-	background: #26323a;
-	color: #b9f6ca;
-	font-family: Consolas, monospace;
-	font-size: 13px;
-	padding: 14px;
-	border-radius: 6px;
-	line-height: 1.6;
-	word-break: break-word;
-	white-space: pre-wrap;
+.result-title { font-weight: bold; color: green; margin-bottom: 10px; }
+.sim-row { margin-bottom: 8px; }
+.sim-word {
+	display: inline-block;
+	width: 140px;
+	font-weight: bold;
+	color: #222;
 }
+.bar-wrap {
+	display: inline-block;
+	width: 320px;
+	height: 16px;
+	background: #eee;
+	border-radius: 8px;
+	overflow: hidden;
+	vertical-align: middle;
+}
+.bar {
+	height: 100%;
+	background: green;
+}
+.score { margin-left: 8px; color: #666; font-size: 13px; }
 .message { color: #b00020; font-size: 14px; }
 .hint { color:#888; font-size: 13px; margin-top: 6px; }
 </style>
 </head>
 <body>
 <a href="/">Kembali Ke Beranda</a>
-<h1 class="text-center text-green">Word Vector</h1>
+<h1 class="text-center text-green">Word Vector Search</h1>
 <hr />
 
 <div class="container">
-	<p class="info">Ketik sebuah kata untuk melihat representasi vektornya (hasil training Word2Vec).</p>
-	<form class="search-row" onsubmit="return lookup(event)">
+	<p class="info">Ketik sebuah kata untuk mencari kata-kata yang paling mirip maknanya (cosine similarity).</p>
+	<form class="search-row" onsubmit="return search(event)">
 		<input type="text" id="wordInput" placeholder="Contoh: kucing, gaji, kota..." autocomplete="off" required />
-		<button type="submit">Lihat Vektor</button>
+		<button type="submit">Cari Kata Mirip</button>
 	</form>
 	<div id="result"></div>
 	<p class="hint">Contoh kata: kucing, anjing, makanan, gaji, karyawan, kota, hujan, sekolah.</p>
 </div>
 
 <script>
-function lookup(event) {
+function search(event) {
 	event.preventDefault();
 	var word = document.getElementById('wordInput').value.trim();
 	var result = document.getElementById('result');
 	if (!word) return false;
 	result.innerHTML = '<p class="info">Memproses...</p>';
 
-	fetch('/word_vector/lookup', {
+	fetch('/word_vector_search/similar', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ word: word })
@@ -88,10 +98,17 @@ function lookup(event) {
 			result.innerHTML = '<p class="message">' + data.message + '</p>';
 			return;
 		}
-		var vecText = '[' + data.vector.join(', ') + ']';
-		result.innerHTML =
-			'<p class="result-title">Vektor untuk kata: "' + data.word + '" (' + data.dim + ' dimensi)</p>' +
-			'<div class="vector-box">' + vecText + '</div>';
+		var html = '<p class="result-title">Kata yang mirip dengan: "' + data.word + '"</p>';
+		data.results.forEach(function(item) {
+			var pct = Math.max(0, Math.min(100, item.score * 100));
+			html +=
+				'<div class="sim-row">' +
+					'<span class="sim-word">' + item.word + '</span>' +
+					'<span class="bar-wrap"><span class="bar" style="width:' + pct + '%"></span></span>' +
+					'<span class="score">' + item.score.toFixed(3) + '</span>' +
+				'</div>';
+		});
+		result.innerHTML = html;
 	})
 	.catch(function() {
 		result.innerHTML = '<p class="message">Terjadi kesalahan.</p>';
