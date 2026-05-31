@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument("--dataset_path", type=str,
                         default=os.path.join(BASE_DIR, "dataset", "customer_service.jsonl"),
                         help="Path file dataset (.jsonl)")
-    parser.add_argument("--output_dir", type=str, default=os.path.join(BASE_DIR, "model"),
+    parser.add_argument("--output_dir", type=str, default=os.path.join(BASE_DIR, "model", "chatbot"),
                         help="Folder untuk menyimpan hasil model")
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=2)

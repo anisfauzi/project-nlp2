@@ -21,7 +21,7 @@ from gensim.models import Word2Vec
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CORPUS_PATH = os.path.join(BASE_DIR, "dataset", "corpus_indonesia.txt")
-MODEL_PATH = os.path.join(BASE_DIR, "model", "word2vec.model")
+MODEL_PATH = os.path.join(BASE_DIR, "model", "word2vec", "word2vec.model")
 
 # Pola tokenisasi: ambil hanya kata (huruf), buang tanda baca & angka.
 _TOKEN = re.compile(r"[a-zA-ZÀ-ÿ]+")

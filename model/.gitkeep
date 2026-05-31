@@ -1,4 +1,12 @@
-# Folder ini menyimpan hasil training:
-#   model/lora_adapter/  -> adapter LoRA (ringan, butuh base model)
-#   model/merged/        -> model gabungan siap pakai (jika training pakai --merge)
-#   model/checkpoints/   -> checkpoint selama training
+# Folder ini menyimpan hasil training (dipisah per jenis model):
+#
+# model/chatbot/    -> chatbot Qwen 2.5 + LoRA (training_model.py)
+#     lora_adapter/ -> adapter LoRA (ringan, butuh base model)
+#     merged/       -> model gabungan siap pakai (jika training pakai --merge)
+#     checkpoints/  -> checkpoint selama training
+#
+# model/lstm/       -> model LSTM cuaca per variabel (training_lstm.py)
+#     lstm_<target>.pt, lstm_scalers_<target>.joblib, lstm_pred_<target>.png
+#
+# model/word2vec/   -> model Word2Vec (training_word_vector.py)
+#     word2vec.model

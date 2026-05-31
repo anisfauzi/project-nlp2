@@ -1,0 +1,185 @@
+<html>
+<head>
+<title>Prediksi Cuaca (LSTM)</title>
+<style>
+body {
+	font-family: Arial, sans-serif;
+	margin: 20px;
+	background-color: #f5f5f5;
+}
+.text-center { text-align: center; }
+.text-green { color: green; }
+.container {
+	max-width: 860px;
+	margin: 20px auto;
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+	padding: 20px;
+}
+.info { color: #666; font-size: 14px; margin-bottom: 14px; }
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.controls label { font-weight: bold; color: #444; }
+.controls select {
+	padding: 11px;
+	border: 1px solid #ccc;
+	border-radius: 6px;
+	font-size: 15px;
+	background: #fff;
+}
+button.predict {
+	padding: 12px 24px;
+	background: green;
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: bold;
+	font-size: 15px;
+}
+button.predict:hover { background: #006400; }
+.cards { display: flex; gap: 14px; margin: 18px 0; flex-wrap: wrap; }
+.card {
+	flex: 1;
+	min-width: 200px;
+	background: #e8f5e9;
+	border: 1px solid #c8e6c9;
+	border-radius: 8px;
+	padding: 14px;
+}
+.card .label { color: #555; font-size: 13px; }
+.card .value { color: #1b5e20; font-size: 26px; font-weight: bold; margin-top: 4px; }
+.card.pred { background: #fff3e0; border-color: #ffe0b2; }
+.card.pred .value { color: #e65100; }
+canvas { width: 100%; height: 320px; border: 1px solid #eee; border-radius: 6px; }
+.message { color: #b00020; font-size: 14px; }
+.legend { font-size: 13px; color:#666; margin-top: 8px; }
+.dot { display:inline-block; width:11px; height:11px; border-radius:50%; vertical-align:middle; margin-right:4px; }
+</style>
+</head>
+<body>
+<a href="/">Kembali Ke Beranda</a>
+<h1 class="text-center text-green">Prediksi Cuaca (LSTM)</h1>
+<hr />
+
+<div class="container">
+	<p class="info">Model LSTM memprediksi nilai cuaca pada periode berikutnya berdasarkan data sensor masa lalu. <br/>
+	Pilih variabel lalu klik tombol untuk membuat prediksi dari data terbaru.</p>
+	<div class="controls">
+		<label for="target">Variabel:</label>
+		<select id="target">
+			{% for t in targets %}
+			<option value="{{ t.key }}">{{ t.label }}</option>
+			{% endfor %}
+		</select>
+		<button class="predict" id="btn" onclick="predict()">Prediksi Periode Berikutnya</button>
+	</div>
+
+	<div id="result"></div>
+	<canvas id="chart" width="820" height="320" style="display:none;"></canvas>
+	<div class="legend" id="legend" style="display:none;">
+		<span class="dot" style="background:green;"></span>Data aktual
+		<span class="dot" style="background:#e65100; margin-left:14px;"></span>Prediksi
+	</div>
+</div>
+
+<script>
+function predict() {
+	var btn = document.getElementById('btn');
+	var result = document.getElementById('result');
+	var target = document.getElementById('target').value;
+	var label = document.getElementById('target').selectedOptions[0].text;
+	btn.disabled = true;
+	result.innerHTML = '<p class="info">Memproses prediksi... (pertama kali agak lama karena memuat data)</p>';
+
+	fetch('/weather_lstm/predict', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ target: target })
+	})
+	.then(function(res) { return res.json(); })
+	.then(function(data) {
+		btn.disabled = false;
+		if (!data.found) {
+			result.innerHTML = '<p class="message">' + data.message + '</p>';
+			return;
+		}
+		result.innerHTML =
+			'<div class="cards">' +
+				'<div class="card"><div class="label">Variabel</div><div class="value" style="font-size:18px;">' + label + '</div></div>' +
+				'<div class="card"><div class="label">Nilai terakhir (' + data.last_time + ')</div><div class="value">' + data.last_value + '</div></div>' +
+				'<div class="card pred"><div class="label">Prediksi (' + data.next_time + ')</div><div class="value">' + data.prediction + '</div></div>' +
+			'</div>';
+		drawChart(data);
+	})
+	.catch(function() {
+		btn.disabled = false;
+		result.innerHTML = '<p class="message">Terjadi kesalahan.</p>';
+	});
+}
+
+function drawChart(data) {
+	var canvas = document.getElementById('chart');
+	var legend = document.getElementById('legend');
+	canvas.style.display = 'block';
+	legend.style.display = 'block';
+	var ctx = canvas.getContext('2d');
+	var W = canvas.width, H = canvas.height;
+	ctx.clearRect(0, 0, W, H);
+
+	var pad = 40;
+	var values = data.history.map(function(h) { return h.value; });
+	var allVals = values.concat([data.prediction]);
+	var min = Math.min.apply(null, allVals);
+	var max = Math.max.apply(null, allVals);
+	if (min === max) { max = min + 1; }
+	var range = max - min;
+	var n = values.length;            // jumlah titik aktual
+	var totalPoints = n + 1;          // + 1 titik prediksi
+
+	function xPos(i) { return pad + (W - 2 * pad) * (i / (totalPoints - 1)); }
+	function yPos(v) { return H - pad - (H - 2 * pad) * ((v - min) / range); }
+
+	// sumbu
+	ctx.strokeStyle = '#ccc';
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(pad, H - pad); ctx.lineTo(W - pad, H - pad);
+	ctx.moveTo(pad, pad); ctx.lineTo(pad, H - pad);
+	ctx.stroke();
+
+	// label min/max
+	ctx.fillStyle = '#888';
+	ctx.font = '11px Arial';
+	ctx.fillText(max.toFixed(1), 4, yPos(max) + 4);
+	ctx.fillText(min.toFixed(1), 4, yPos(min) + 4);
+
+	// garis aktual
+	ctx.strokeStyle = 'green';
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	values.forEach(function(v, i) {
+		if (i === 0) ctx.moveTo(xPos(i), yPos(v));
+		else ctx.lineTo(xPos(i), yPos(v));
+	});
+	ctx.stroke();
+
+	// garis penghubung ke titik prediksi
+	ctx.strokeStyle = '#e65100';
+	ctx.setLineDash([5, 4]);
+	ctx.beginPath();
+	ctx.moveTo(xPos(n - 1), yPos(values[n - 1]));
+	ctx.lineTo(xPos(n), yPos(data.prediction));
+	ctx.stroke();
+	ctx.setLineDash([]);
+
+	// titik prediksi
+	ctx.fillStyle = '#e65100';
+	ctx.beginPath();
+	ctx.arc(xPos(n), yPos(data.prediction), 5, 0, 2 * Math.PI);
+	ctx.fill();
+}
+</script>
+</body>
+</html>

@@ -83,3 +83,7 @@ model/*
 *.joblib
 *.h5
 *.safetensors
+
+# Dataset besar (jangan di-commit, terlalu besar untuk git)
+dataset/minute_weather.csv
+*.pt
